@@ -13,6 +13,7 @@
 	use App\Banco;
 	use App\Sucursale;
 	use App\Alumnoabono;
+	use App\Ingresosolicitude;
 	use Illuminate\Support\Facades\DB;
 
 	class Ingresos{
@@ -125,6 +126,63 @@
 			try {
 				$abono = Alumnoabono::where('idIngreso', '=', $id)->get();
 				return (count($abono) > 0) ? $abono[0] : null;
+			} catch (Exception $e) {
+				return null;
+			}
+		}
+
+		function solicitudes(){
+			try {
+				$solicitudes = Ingresosolicitude::join('ingresos', 'idIngreso', '=', 'ingresos.id')->
+		        join('usuarios', 'idUsuarioSolicito', '=', 'usuarios.id')->
+		        join('empleados', 'usuarios.idEmpleado', '=', 'empleados.id')->
+		        join('rubros', 'ingresosolicitudes.idRubro', '=', 'rubros.id')->
+		        join('tiposingresos', 'ingresosolicitudes.idTipo', '=', 'tiposingresos.id')->
+		        join('formaspagos', 'ingresosolicitudes.idFormaPago', '=', 'formaspagos.id')->
+		        join('metodospagos', 'ingresosolicitudes.idMetodoPago', '=', 'metodospagos.id')->
+		        leftjoin('bancos', 'ingresosolicitudes.idBanco', '=', 'bancos.id')->
+		        leftjoin('cuentas', 'ingresosolicitudes.idCuenta', '=', 'cuentas.id')->
+		        select(
+		            'ingresos.folio',
+		            'ingresosolicitudes.*',
+		            'empleados.nombre as empleado',
+		            'rubros.nombre as rubro',
+		            'tiposingresos.nombre as tipo',
+		            'formaspagos.nombre as forma',
+		            'metodospagos.nombre as metodo',
+		            'bancos.nombre as banco',
+		            'cuentas.nombre as cuenta',
+		            DB::raw("(CASE 
+		                        WHEN(ingresosolicitudes.estatus = 2) THEN 'bg-verde'
+		                        WHEN(ingresosolicitudes.estatus = 3) THEN 'bg-rojo'
+		                        END) AS bg")
+		        )->get();
+
+		        return $solicitudes;
+			} catch (Exception $e) {
+				return null;
+			}
+		}
+
+		function modificar($dato){
+			try {
+				$ingreso = Ingreso::find($dato['id']);
+	            $ingreso->concepto = $dato['concepto'];
+	            $ingreso->monto = $dato['monto'];
+	            $ingreso->observaciones = $dato['observaciones'];
+	            $ingreso->idRubro = $dato['idRubro'];
+	            $ingreso->idTipo = $dato['idTipo'];
+	            $ingreso->idCalendario = $dato['idCalendario'];
+	            $ingreso->idFormaPago = $dato['idFormaPago'];
+	            $ingreso->idMetodoPago = $dato['idMetodoPago'];
+	            $ingreso->idNivel = $dato['idNivel'];
+	            $ingreso->idBanco = (intval($dato['idFormaPago']) === 1) ? null : $dato['idBanco'];
+	            $ingreso->nombreCuenta = (intval($dato['idFormaPago']) === 1) ? null : $dato['nombreCuenta'];
+	            $ingreso->numeroReferencia = (intval($dato['idFormaPago']) === 1) ? null : $dato['numeroReferencia'];
+	            $ingreso->idCuenta = (intval($dato['idFormaPago']) === 1) ? null : $dato['idCuenta'];
+	            $ingreso->save();
+
+	            return $ingreso;
 			} catch (Exception $e) {
 				return null;
 			}

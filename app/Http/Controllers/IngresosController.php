@@ -123,22 +123,7 @@ class IngresosController extends BaseController
     function modificar(Request $request){
         try {
             $funciones = new Ingresos();
-            $ingreso = Ingreso::find($request['id']);
-            $ingreso->concepto = $request['concepto'];
-            $ingreso->monto = $request['monto'];
-            $ingreso->observaciones = $request['observaciones'];
-            $ingreso->idRubro = $request['idRubro'];
-            $ingreso->idTipo = $request['idTipo'];
-            $ingreso->idCalendario = $request['idCalendario'];
-            $ingreso->idFormaPago = $request['idFormaPago'];
-            $ingreso->idMetodoPago = $request['idMetodoPago'];
-            $ingreso->idNivel = $request['idNivel'];
-            $ingreso->idBanco = (intval($request['idFormaPago']) === 1) ? null : $request['idBanco'];
-            $ingreso->nombreCuenta = (intval($request['idFormaPago']) === 1) ? null : $request['nombreCuenta'];
-            $ingreso->numeroReferencia = (intval($request['idFormaPago']) === 1) ? null : $request['numeroReferencia'];
-            $ingreso->idCuenta = (intval($request['idFormaPago']) === 1) ? null : $request['idCuenta'];
-            $ingreso->save();
-
+            $ingreso = $funciones->modificar($request);
             $ingreso = $funciones->completar($ingreso);
             return response()->json($ingreso, 200);
         } catch (Exception $e) {
@@ -160,7 +145,7 @@ class IngresosController extends BaseController
         }
     }
 
-    function actualizarVoucher(Request $request) {
+    function cargar(Request $request) {
         try {
             $ingreso = Ingreso::find($request['id']);
             $ingreso->imagen = $request['imagen'];
@@ -171,7 +156,7 @@ class IngresosController extends BaseController
         }
     }
 
-    function traerVoucher(Request $request){
+    function voucher(Request $request){
         try {
             $ingreso = Ingreso::find($request['id']);
             return response()->json($ingreso->imagen, 200);
@@ -180,39 +165,16 @@ class IngresosController extends BaseController
         }
     }
 
-    function mostrarSolicitudes(Request $request){
+    function solicitudes(Request $request){
         try {
-            $solicitudes = Ingresosolicitude::join('ingresos', 'idIngreso', '=', 'ingresos.id')->
-            join('usuarios', 'idUsuarioSolicito', '=', 'usuarios.id')->
-            join('empleados', 'usuarios.idEmpleado', '=', 'empleados.id')->
-            join('rubros', 'ingresosolicitudes.idRubro', '=', 'rubros.id')->
-            join('tiposingresos', 'ingresosolicitudes.idTipo', '=', 'tiposingresos.id')->
-            join('formaspagos', 'ingresosolicitudes.idFormaPago', '=', 'formaspagos.id')->
-            join('metodospagos', 'ingresosolicitudes.idMetodoPago', '=', 'metodospagos.id')->
-            leftjoin('bancos', 'ingresosolicitudes.idBanco', '=', 'bancos.id')->
-            leftjoin('cuentas', 'ingresosolicitudes.idCuenta', '=', 'cuentas.id')->
-            select(
-                'ingresos.folio',
-                'ingresosolicitudes.*',
-                'empleados.nombre as empleado',
-                'rubros.nombre as rubro',
-                'tiposingresos.nombre as tipo',
-                'formaspagos.nombre as forma',
-                'metodospagos.nombre as metodo',
-                'bancos.nombre as banco',
-                'cuentas.nombre as cuenta',
-                DB::raw("(CASE 
-                            WHEN(ingresosolicitudes.estatus = 2) THEN 'bg-verde'
-                            WHEN(ingresosolicitudes.estatus = 3) THEN 'bg-rojo'
-                            END) AS bg")
-            )->get();
-            return response()->json($solicitudes, 200);
+            $funciones = new Ingresos();
+            return response()->json($funciones->solicitudes(), 200);
         } catch (Exception $e) {
             return response()->json('Error en el servidor', 400);
         }
     }
 
-    function solicitarModificacion(Request $request){
+    function solicitar(Request $request){
         try {
             $existe = Ingresosolicitude::where('idIngreso', '=', $request['id'])->where('estatus', '=', 1)->get();
             if(count($existe) > 0){
@@ -244,7 +206,7 @@ class IngresosController extends BaseController
         }
     }
 
-    function aceptarModificacion(Request $request){
+    function aceptar(Request $request){
         try {
             $modificacion = Ingresosolicitude::find($request['id']);
             $modificacion->estatus = 2;
@@ -271,7 +233,7 @@ class IngresosController extends BaseController
         }
     }
 
-    function rechazarModificacion(Request $request){
+    function rechazar(Request $request){
         try {
             $modificacion = Ingresosolicitude::find($request['id']);
             $modificacion->estatus = 3;
