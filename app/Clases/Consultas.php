@@ -11,6 +11,18 @@
 		function obtenerConsultas(){
 			return DB::getQueryLog();
 		}
+
+		function abrirRollback(){
+			return DB::beginTransaction();
+		}
+
+		function finalizarRollback(){
+			return DB::commit();
+		}
+
+		function activarRollback(){
+			return DB::rollback();
+		}
 	}
 
 	

@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 use App\Clases\Nominas;
+use App\Clases\Sucursales;
+use App\Clases\Folios;
+use App\Clases\Consultas;
 use App\Nomina;
 
 use Laravel\Lumen\Routing\Controller as BaseController;
@@ -181,22 +184,8 @@ class NominasController extends BaseController
 
     function autorizadas(Request $request){
         try {
-            $nominas = Nomina::join('empleados', 'idEmpleado', '=', 'empleados.id')->
-                       join('sucursales', 'nominas.idSucursal', '=', 'sucursales.id')->
-                       join('calendarios', 'idCalendario', '=', 'calendarios.id')->
-                       join('departamentos', 'nominas.idDepartamento', '=', 'departamentos.id')->
-                       join('niveles', 'idNivel', '=', 'niveles.id')->
-                       select('nominas.id', 
-                              'nominas.folio', 
-                              'departamentos.nombre as departamento', 
-                              'niveles.nombre as nivel', 
-                              'sucursales.nombre as sucursal', 
-                              'empleados.nombre as empleado', 
-                              'calendarios.nombre as calendario',
-                              DB::raw("CONCAT('$',FORMAT(nominas.total, 2)) AS total"))->
-                       where('nominas.idSucursal', '=', $request['idSucursal'])->
-                       where('nominas.eliminado', '=', 0)->
-                       where('estatus', '=', 1)->get();
+            $funciones = new Nominas();
+            $nominas = $funciones->autorizadas($request['sucursalID']);
             return response()->json($nominas, 200);
         } catch (Exception $e) {
             return response()->json('Erro en el servidor', 400);
@@ -217,18 +206,21 @@ class NominasController extends BaseController
     }
 
     function cobrar(Request $request){
+        $consultas = new Consultas();
         try {
-            $nomina = traerDatosNomina($request['id']);
-            $totalEfectivo = 0;
-            $totalDeposito = 0;
+            $funciones = new Nominas();
+            $sucursales = new Sucursales();
 
+            $consultas->abrirRollback();
+            $nomina = $funciones->datos($request['id']);
             $totalEfectivo = floatval($nomina->percepcionesEfectivo) - floatval($nomina->deduccionesEfectivo);
             $totalDeposito = floatval($nomina->percepcionesDeposito) - floatval($nomina->deduccionesDeposito);
 
-            $saldoTotalSucursal = saldoTotalSucursal($request['sucursalID']);
-            if($totalEfectivo > $saldoTotalSucursal){
+            $saldoSucursal = $sucursales->saldo($request['sucursalID']);
+            if($totalEfectivo > $saldoSucursal){
                 return response()->json("No cuentas con suficiente saldo para realizar este egreso", 400);
             }
+            return response()->json($saldoSucursal, 400);
 
             $folio = proximoFolioNomina($nomina->idNivel, $nomina->idCalendario, $nomina->idSucursal);
 
@@ -294,6 +286,7 @@ class NominasController extends BaseController
 
             return response()->json($actualizar, 200);
         } catch (Exception $e) {
+            $consultas->activarRollback();
             return response()->json('Error en el servidor', 400);
         }
     }
