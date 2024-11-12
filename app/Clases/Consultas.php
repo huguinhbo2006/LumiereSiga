@@ -12,15 +12,15 @@
 			return DB::getQueryLog();
 		}
 
-		function abrirRollback(){
+		function start(){
 			return DB::beginTransaction();
 		}
 
-		function finalizarRollback(){
+		function commit(){
 			return DB::commit();
 		}
 
-		function activarRollback(){
+		function rollback(){
 			return DB::rollback();
 		}
 	}

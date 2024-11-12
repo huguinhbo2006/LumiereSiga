@@ -187,7 +187,44 @@
 				return null;
 			}
 		}
-	}
 
-	
+		function ingresosDiariosUsuario($usuarioID, $sucursalID){
+			try {
+		        return Ingreso::join('rubros', 'idRubro', '=', 'rubros.id')->
+		        join('formaspagos', 'idFormaPago', '=', 'formaspagos.id')->
+		        select(
+		            'ingresos.folio',
+		            'rubros.nombre as rubro',
+		            'ingresos.concepto',
+		            DB::raw("CONCAT('$',FORMAT(ingresos.monto,2)) AS monto"),
+		            'formaspagos.nombre as forma',
+		            DB::raw("(CASE 
+		                        WHEN(ingresos.referencia = 1) THEN 'Comun'
+		                        WHEN(ingresos.referencia = 2) THEN 'Inscripcion'
+		                        WHEN(ingresos.referencia = 3) THEN 'Abonos'
+		                        WHEN(ingresos.referencia = 4) THEN 'Vale'
+		                        WHEN(ingresos.referencia = 5) THEN 'Transferencia'
+		                        ELSE 'Desconocido'
+		                        END) AS referencia"),
+		            DB::raw('DATE_FORMAT(ingresos.created_at, "%d-%m-%Y %H:%i:%s") as fecha')
+		        )->
+		        where('idUsuario', '=', $usuarioID)->
+		        where('idSucursal', '=', $sucursalID)->
+		        where('ingresos.eliminado', '=', 0)->
+		        whereRaw("DATE_FORMAT(ingresos.created_at,'%y-%m-%d') = CURDATE()")->get();
+	      	} catch (Exception $e) {
+	        	return null;
+	      	}
+		}
+
+		function totalEfectivoUsuarioDia($sucursal, $usuario){
+			$total = Ingreso::where('activo', '=', 1)->
+			where('idSucursal', '=', $sucursal)->
+			where('idFormaPago', '=', 1)->
+			where('idUsuario', '=', $usuario)->
+			whereRaw("DATE_FORMAT(ingresos.created_at,'%y-%m-%d') = CURDATE()")->
+			sum('monto');
+			return $total + 0;
+		}
+	}
 ?>

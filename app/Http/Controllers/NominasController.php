@@ -211,7 +211,7 @@ class NominasController extends BaseController
             $funciones = new Nominas();
             $sucursales = new Sucursales();
 
-            $consultas->abrirRollback();
+            $consultas->start();
             $nomina = $funciones->datos($request['id']);
             $totalEfectivo = floatval($nomina->percepcionesEfectivo) - floatval($nomina->deduccionesEfectivo);
             $totalDeposito = floatval($nomina->percepcionesDeposito) - floatval($nomina->deduccionesDeposito);
@@ -220,73 +220,20 @@ class NominasController extends BaseController
             if($totalEfectivo > $saldoSucursal){
                 return response()->json("No cuentas con suficiente saldo para realizar este egreso", 400);
             }
-            return response()->json($saldoSucursal, 400);
 
-            $folio = proximoFolioNomina($nomina->idNivel, $nomina->idCalendario, $nomina->idSucursal);
-
-            if($totalEfectivo > 0){
-                $egreso = Egreso::create([
-                    'concepto' => 'Pago en Efectivo a Nomina',
-                    'monto' => $totalEfectivo,
-                    'observaciones' => $nomina->observaciones,
-                    'idRubro' => 3,
-                    'idTipo' => 4,
-                    'idSucursal' => $nomina->idSucursal,
-                    'idCalendario' => $nomina->idCalendario,
-                    'idFormaPago' => 1,
-                    'idUsuario' => $request['usuario'],
-                    'referencia' => 3,
-                    'idNivel' => $nomina->idNivel,
-                    'folio' => $folio,
-                    'idCuenta' => 0,
-                    'activo' => 1,
-                    'eliminado' => 0,
-                ]);
-                $primer = Nominaegreso::create([
-                    'idNomina' => $nomina->id,
-                    'idEgreso' => $egreso->id,
-                    'eliminado' => 0,
-                    'activo' => 1,
-                    'tipo' => 1
-                ]);
+            if(floatval($totalEfectivo) > 0){
+                $funciones->crearEgreso($nomina, $request['usuarioID'], $totalEfectivo, 1);    
             }
 
-            $folio = proximoFolioNomina($nomina->idNivel, $nomina->idCalendario, $nomina->idSucursal);
-
-            if($totalDeposito > 0){
-                $egreso = Egreso::create([
-                    'concepto' => 'Pago en Deposito a Nomina',
-                    'monto' => $totalDeposito,
-                    'observaciones' => $nomina->observaciones,
-                    'idRubro' => 3,
-                    'idTipo' => 4,
-                    'idSucursal' => $nomina->idSucursal,
-                    'idCalendario' => $nomina->idCalendario,
-                    'idFormaPago' => 4,
-                    'idUsuario' => $request['usuario'],
-                    'referencia' => 3,
-                    'idNivel' => $nomina->idNivel,
-                    'folio' => $folio,
-                    'idCuenta' => $nomina->idBanco,
-                    'activo' => 1,
-                    'eliminado' => 0,
-                ]); 
-                $segundo = Nominaegreso::create([
-                    'idNomina' => $nomina->id,
-                    'idEgreso' => $egreso->id,
-                    'eliminado' => 0,
-                    'activo' => 1,
-                    'tipo' => 2
-                ]);
+            if(floatval($totalDeposito)){
+                $funciones->crearEgreso($nomina, $request['usuarioID'], $totalDeposito, 4);    
             }
 
-            $actualizar = Nomina::find($nomina->id);
-            $actualizar->estatus = 2;
-            $actualizar->save();
-
+            $actualizar = $funciones->cobrar($nomina->id);
+            $consultas->commit();
             return response()->json($actualizar, 200);
         } catch (Exception $e) {
-            $consultas->activarRollback();
+            $consultas->rollback();
             return response()->json('Error en el servidor', 400);
         }
     }

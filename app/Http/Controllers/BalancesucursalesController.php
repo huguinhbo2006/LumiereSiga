@@ -35,7 +35,7 @@ class BalancesucursalesController extends BaseController
         }
     }
 
-    function mostrarAdministrativos(Request $request){
+    function corte(Request $request){
         try{
             $usuario = $request['idUsuario'];
             $sucursal = $request['idSucursal'];

@@ -45,6 +45,11 @@ use App\Deduccione;
 use App\Egreso;
 use App\Cupone;
 use Carbon\Carbon;
+use App\Clases\Balances;
+use App\Clases\Generales;
+use App\Clases\Ingresos;
+use App\Clases\Egresos;
+use App\Clases\Sucursales;
 
 use Laravel\Lumen\Routing\Controller as BaseController;
 use Illuminate\Http\Request;
@@ -390,148 +395,42 @@ class PDFController extends BaseController
 
     function corte(Request $request){
         try {
-            $idUsuario = $request['idUsuario'];
-            $idSucursal = $request['idSucursal'];
-            $usuario = Usuario::find($request['idUsuario']);
+            $funciones = new Balances();
+            $ingresos = new Ingresos();
+            $generales = new Generales();
+            $egresos = new Egresos();
+            $sucursales = new Sucursales();
+
+            $usuario = Usuario::find($request['usuarioID']);
             $respuesta = array();
             $respuesta['fechaCorte'] = Carbon::now()->format('Y-m-d H:i:s');
             $respuesta['usuario'] = Empleado::find($usuario->idEmpleado)->nombre;
-            $totalEgresos = 0;
-            $totalIngresos = 0;
-            $hoy = Carbon::now();
 
-            
-            $ingresos = Ingreso::join('rubros', 'idRubro', '=', 'rubros.id')->
-            join('formaspagos', 'idFormaPago', '=', 'formaspagos.id')->
-            select(
-                'ingresos.folio',
-                'rubros.nombre as rubro',
-                'ingresos.concepto',
-                DB::raw("CONCAT('$',FORMAT(ingresos.monto,2)) AS monto"),
-                'formaspagos.nombre as forma',
-                DB::raw("(CASE 
-                            WHEN(ingresos.referencia = 1) THEN 'Comun'
-                            WHEN(ingresos.referencia = 2) THEN 'Inscripcion'
-                            WHEN(ingresos.referencia = 3) THEN 'Abonos'
-                            WHEN(ingresos.referencia = 4) THEN 'Vale'
-                            WHEN(ingresos.referencia = 5) THEN 'Transferencia'
-                            ELSE 'Desconocido'
-                            END) AS referencia"),
-                DB::raw('DATE_FORMAT(ingresos.created_at, "%d-%m-%Y %H:%i:%s") as fecha')
-            )->
-            where('idUsuario', '=', $usuario->id)->
-            where('idSucursal', '=', $request['idSucursal'])->
-            where('ingresos.eliminado', '=', 0)->
-            whereRaw("DATE_FORMAT(ingresos.created_at,'%y-%m-%d') = ".$hoy->format('d-m-Y'))->get();
-            $resultado = array();
-            foreach ($ingresos as $ingreso) {
-                $nuevo = array();
-                $nuevo[] = $ingreso->folio;
-                $nuevo[] = $ingreso->rubro;
-                $nuevo[] = $ingreso->concepto;
-                $nuevo[] = $ingreso->monto;
-                $nuevo[] = $ingreso->forma;
-                $nuevo[] = $ingreso->referencia;
-                $nuevo[] = $ingreso->fecha;
-                $resultado[] = $nuevo;
-            }
-            $respuesta['ingresos'] = $resultado;
+            $ingresosDiarios = $ingresos->ingresosDiariosUsuario($request['usuarioID'], $request['sucursalID']);
+            $respuesta['ingresos'] = $generales->listaObjetosArray($ingresosDiarios);
 
 
-            $egresos = Egreso::join('rubrosegresos', 'idRubro', '=', 'rubrosegresos.id')->
-            join('formaspagos', 'idFormaPago', '=', 'formaspagos.id')->
-            select(
-                'egresos.folio',
-                'rubrosegresos.nombre as rubro',
-                'egresos.concepto',
-                DB::raw("CONCAT('$',FORMAT(egresos.monto,2)) AS monto"),
-                'formaspagos.nombre as forma',
-                DB::raw("(CASE 
-                            WHEN(egresos.referencia = 1) THEN 'Comun'
-                            WHEN(egresos.referencia = 2) THEN 'Devolucion'
-                            WHEN(egresos.referencia = 3) THEN 'Nomina'
-                            WHEN(egresos.referencia = 4) THEN 'Vale'
-                            WHEN(egresos.referencia = 5) THEN 'Transferencia'
-                            ELSE 'Desconocido'
-                            END) AS referencia"),
-                DB::raw('DATE_FORMAT(egresos.created_at, "%d-%m-%Y %H:%i:%s") as fecha')
-            )->
-            where('idUsuario', '=', $usuario->id)->
-            where('idSucursal', '=', $request['idSucursal'])->
-            where('egresos.eliminado', '=', 0)->
-            whereRaw("DATE_FORMAT(egresos.created_at,'%y-%m-%d') = ".$hoy->format('d-m-Y'))->get();
+            $egresosDiarios = $egresos->egresosDiariosUsuario($request['usuarioID'], $request['sucursalID']);
+            $respuesta['egresos'] = $generales->listaObjetosArray($egresosDiarios);
 
-            $resultado = array();                                 
-            foreach ($egresos as $egreso) {
-                $nuevo = array();
-                $nuevo[] = $egreso->folio;
-                $nuevo[] = $egreso->rubro;
-                $nuevo[] = $egreso->concepto;
-                $nuevo[] = $egreso->monto;
-                $nuevo[] = $egreso->forma;
-                $nuevo[] = $egreso->referencia;
-                $nuevo[] = $egreso->fecha;
-                $resultado[] = $nuevo;
-            }
-            $respuesta['egresos'] = $resultado;
+            $formasIngresos = $funciones->ingresosFormaPago($request['sucursalID']);
+            $respuesta['totalIngresos'] = $generales->listaObjetosArray($formasIngresos);
 
-            $selectFormas = "SELECT fp.id, fp.nombre, (SELECT SUM(monto) FROM ingresos WHERE idFormaPago = fp.id AND DATE_FORMAT(created_at,'%y-%m-%d') = CURDATE() LIMIT 1) AS montoIngresos, (SELECT SUM(monto) FROM egresos WHERE idFormaPago = fp.id AND DATE_FORMAT(created_at,'%y-%m-%d') = CURDATE() LIMIT 1) AS montoEgresos FROM formaspagos fp WHERE fp.eliminado = 0 GROUP BY fp.nombre, fp.id";
-            $formas = DB::select($selectFormas, array());
-            $ingresos = array();
-            $totalFinalIngresos = 0;
-            $egresos = array();
-            $totalFinalEgresos = 0;
-            foreach ($formas as $forma) {
-                $ingreso = array();
-                $egreso = array();
+            $formasEgresos = $funciones->egresosFormaPago($request['sucursalID']);
+            $respuesta['totalEgresos'] = $generales->listaObjetosArray($formasEgresos);
 
-                $ingreso[] = $forma->nombre;
-                $ingreso[] = (is_null($forma->montoIngresos)) ? "$".number_format(0, 2, '.', ',') : "$".number_format($forma->montoIngresos, 2, '.', ',');
-                $totalFinalIngresos = $totalFinalIngresos + floatval($forma->montoIngresos);
-                $ingresos[] = $ingreso;
+            $fichas = $funciones->fichas($request['usuarioID'], $request['sucursalID']);
+            $respuesta['inscripciones'] = $generales->listaObjetosArray($fichas);
 
-                $egreso[] = $forma->nombre;
-                $egreso[] = (is_null($forma->montoIngresos)) ? "$".number_format(0, 2, '.', ',') : "$".number_format($forma->montoEgresos, 2, '.', ',');
-                $totalFinalEgresos = $totalFinalEgresos + floatval($forma->montoEgresos);
-                $egresos[] = $egreso;
+            $respuesta['vale'] = $funciones->valeAdministrativo($request['sucursalID']);
 
-                if($forma->id === 1){
-                    $totalIngresos = $forma->montoIngresos;
-                    $totalEgresos = $forma->montoEgresos;
-                }
-            }
-            $ingreso = array();
-            $ingreso[] = 'Total';
-            $ingreso[] = "$".number_format($totalFinalIngresos, 2, '.', ',');
-            $ingresos[] = $ingreso;
-            $respuesta['totalIngresos'] = $ingresos;
+            $respuesta['saldoTotal'] = $sucursales->saldo($request['sucursalID']) - floatval($funciones->valeAdministrativo($request['sucursalID']));
 
-            $egreso = array();
-            $egreso[] = 'Total';
-            $egreso[] = "$".number_format($totalFinalEgresos, 2, '.', ',');
-            $egresos[] = $egreso;
-            $respuesta['totalEgresos'] = $egresos;
+            $respuesta['montoIngresos'] = $ingresos->totalEfectivoUsuarioDia($request['sucursalID'], $request['usuarioID']);
 
-            $fichas = Ficha::join('alumnos', 'idAlumno', '=', 'alumnos.id')->
-            select(
-                db::raw("CONCAT(alumnos.nombre, ' ', alumnos.apellidoPaterno, ' ', alumnos.apellidoMaterno) as alumno"),
-                'fichas.folio', 
-                DB::raw('DATE_FORMAT(fichas.created_at, "%d-%m-%Y %H:%i:%s") as fecha')
-            )->
-            where('fichas.idUsuario', '=', $usuario->id)->
-            where('fichas.idSucursalInscripcion', '=', $request['idSucursal'])->
-            whereRaw("DATE_FORMAT(fichas.created_at,'%y-%m-%d') = ".$hoy->format('d-m-Y'))->get();
-            $resultado = array();
-            foreach ($fichas as $ficha) {
-                $nuevo = array();
-                $nuevo[] = $ficha->alumno;
-                $nuevo[] = $ficha->folio;
-                $nuevo[] = $ficha->fecha;
-                $resultado[] = $nuevo;
-            }
-            $respuesta['inscripciones'] = $resultado;
-            $respuesta['montoIngresos'] = $totalIngresos + 0;
-            $respuesta['montoEgresos'] = $totalEgresos + 0;
+            $respuesta['montoEgresos'] = $egresos->totalEfectivoUsuarioDia($request['sucursalID'], $request['usuarioID']);
+
+            $respuesta['vale'] = $funciones->valeAdministrativo($request['sucursalID']);
 
             return response()->json($respuesta, 200);
         } catch (Exception $e) {

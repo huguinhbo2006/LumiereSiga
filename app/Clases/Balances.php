@@ -7,8 +7,11 @@
   use App\Egreso;
   use App\Vale;
   use App\Valeadministrativo;
+  use App\Ficha;
   use App\Clases\Ingresos;
   use App\Clases\Egresos;
+  use Illuminate\Support\Facades\DB;
+  use Carbon\Carbon;
 
   class Balances{
     
@@ -79,5 +82,70 @@
         return null;
       }
     }
+    
+    function ingresosFormaPago($sucursalID){
+      try {
+        $formas = Formaspago::select(
+          'formaspagos.nombre',
+          DB::raw("(SELECT SUM(monto) FROM ingresos WHERE idFormaPago = formaspagos.id AND DATE_FORMAT(created_at,'%y-%m-%d') = CURDATE() AND idSucursal = $sucursalID LIMIT 1) as monto")
+        )->where('eliminado', '=', 0)->get();
+        foreach ($formas as $forma) {
+          if(is_null($forma)){
+            $forma->monto = '$0.00';
+          }else{
+            $forma->monto = '$'.number_format($forma->monto, 2, '.', ',');
+          }
+        }
+        return $formas;
+      } catch (Exception $e) {
+        return null;
+      }
+    }
+
+    function egresosFormaPago($sucursalID){
+      try {
+        $formas = Formaspago::select(
+          'formaspagos.nombre',
+          DB::raw("(SELECT SUM(monto) FROM egresos WHERE idFormaPago = formaspagos.id AND DATE_FORMAT(created_at,'%y-%m-%d') = CURDATE() AND idSucursal = $sucursalID LIMIT 1) as monto")
+        )->where('eliminado', '=', 0)->get();
+        foreach ($formas as $forma) {
+          if(is_null($forma)){
+            $forma->monto = '$0.00';
+          }else{
+            $forma->monto = '$'.number_format($forma->monto, 2, '.', ',');
+          }
+        }
+        return $formas;
+      } catch (Exception $e) {
+        return null;
+      }
+    }
+
+    function fichas($usuarioID, $sucursalID){
+      try {
+        $fichas = Ficha::join('alumnos', 'idAlumno', '=', 'alumnos.id')->
+        select(
+          DB::raw("CONCAT(alumnos.nombre, ' ', alumnos.apellidoPaterno, ' ', alumnos.apellidoMaterno) as alumno"),
+          'fichas.folio',
+          DB::raw('DATE_FORMAT(fichas.created_at, "%d-%m-%Y %H:%i:%s") as fecha')
+        )->
+        where('fichas.idUsuario', '=', $usuarioID)->
+        where('fichas.idSucursalInscripcion', '=', $sucursalID)->
+        whereRaw("DATE_FORMAT(fichas.created_at,'%y-%m-%d') = CURDATE()")->get();
+      } catch (Exception $e) {
+        return null;
+      }
+    }
+
+    function valeAdministrativo($sucursalID){
+      try {
+        $vale = Valeadministrativo::where('idSucursal', '=', $sucursalID)->get();
+        return (count($vale) > 0) ? $vale[0]->monto : 0;
+      } catch (Exception $e) {
+        return null;
+      }
+    }
   }
+
+
 ?>

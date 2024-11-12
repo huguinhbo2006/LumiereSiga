@@ -115,5 +115,44 @@
 				return response()->json('Error en el servidor', 400);
 			}
 		}
+
+		function egresosDiariosUsuario($usuarioID, $sucursalID){
+			try {
+				return Egreso::join('rubrosegresos', 'idRubro', '=', 'rubrosegresos.id')->
+	            join('formaspagos', 'idFormaPago', '=', 'formaspagos.id')->
+	            select(
+	                'egresos.folio',
+	                'rubrosegresos.nombre as rubro',
+	                'egresos.concepto',
+	                DB::raw("CONCAT('$',FORMAT(egresos.monto,2)) AS monto"),
+	                'formaspagos.nombre as forma',
+	                DB::raw("(CASE 
+	                            WHEN(egresos.referencia = 1) THEN 'Comun'
+	                            WHEN(egresos.referencia = 2) THEN 'Devolucion'
+	                            WHEN(egresos.referencia = 3) THEN 'Nomina'
+	                            WHEN(egresos.referencia = 4) THEN 'Vale'
+	                            WHEN(egresos.referencia = 5) THEN 'Transferencia'
+	                            ELSE 'Desconocido'
+	                            END) AS referencia"),
+	                DB::raw('DATE_FORMAT(egresos.created_at, "%d-%m-%Y %H:%i:%s") as fecha')
+	            )->
+	            where('idUsuario', '=', $usuarioID)->
+	            where('idSucursal', '=', $sucursalID)->
+	            where('egresos.eliminado', '=', 0)->
+	            whereRaw("DATE_FORMAT(egresos.created_at,'%y-%m-%d') = CURDATE()")->get();
+			} catch (Exception $e) {
+				return null;
+			}
+		}
+
+		function totalEfectivoUsuarioDia($sucursal, $usuario){
+			$total = Egreso::where('activo', '=', 1)->
+			where('idSucursal', '=', $sucursal)->
+			where('idFormaPago', '=', 1)->
+			where('idUsuario', '=', $usuario)->
+			whereRaw("DATE_FORMAT(egresos.created_at,'%y-%m-%d') = CURDATE()")->
+			sum('monto');
+			return $total + 0;
+		}
 	}
 ?>

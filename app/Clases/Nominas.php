@@ -117,21 +117,21 @@
 			}
 		}
 
-		function crearEgresoEfectivo($nomina){
+		function crearEgreso($nomina, $usuario, $total, $forma){
 			try {
 				$folios = new Folios();
 
 				$folio = $folios->proximoEgreso($nomina->idNivel, $nomina->idCalendario, $nomina->idSucursal);
 				$egreso = Egreso::create([
-                    'concepto' => 'Pago en Efectivo a Nomina',
-                    'monto' => $totalEfectivo,
+                    'concepto' => (intval($forma) === 1) ? 'Pago en Efectivo a Nomina' : 'Pago en Deposito a Nomina',
+                    'monto' => $total,
                     'observaciones' => $nomina->observaciones,
                     'idRubro' => 3,
                     'idTipo' => 4,
                     'idSucursal' => $nomina->idSucursal,
                     'idCalendario' => $nomina->idCalendario,
-                    'idFormaPago' => 1,
-                    'idUsuario' => $request['usuario'],
+                    'idFormaPago' => $forma,
+                    'idUsuario' => $usuario,
                     'referencia' => 3,
                     'idNivel' => $nomina->idNivel,
                     'folio' => $folio,
@@ -139,21 +139,27 @@
                     'activo' => 1,
                     'eliminado' => 0,
                 ]);
-                $primer = Nominaegreso::create([
+
+                $registro = Nominaegreso::create([
                     'idNomina' => $nomina->id,
                     'idEgreso' => $egreso->id,
                     'eliminado' => 0,
                     'activo' => 1,
                     'tipo' => 1
                 ]);
+
+                return true;
 			} catch (Exception $e) {
 				return null;
 			}
 		}
 
-		function crearEgresoDeposito(){
+		function cobrar($nominaID){
 			try {
-				
+				$nomina = Nomina::find($nominaID);
+				$nomina->estatus = 2;
+				$nomina->save();
+				return $nomina;
 			} catch (Exception $e) {
 				return null;
 			}
