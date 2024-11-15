@@ -12,6 +12,8 @@
 	use App\Cuenta;
 	use App\Ingreso;
 	use App\Alumnodevolucione;
+	use App\Egresosolicitude;
+	use App\Clases\Egresos;
 
 	use Illuminate\Support\Facades\DB;
 
@@ -19,6 +21,49 @@
 		function totalEfectivo($sucursal){
 			$total = Egreso::where('activo', '=', 1)->where('idSucursal', '=', $sucursal)->where('idFormaPago', '=', 1)->sum('monto');
 			return $total + 0;
+		}
+
+		function crearEgreso($datos, $folio){
+			try {
+				return Egreso::create([
+	                'concepto' => $datos['concepto'],
+	                'monto' => $datos['monto'],
+	                'observaciones' => $datos['observaciones'],
+	                'idRubro' => $datos['idRubro'],
+	                'idTipo' => $datos['idTipo'],
+	                'idSucursal' => $datos['sucursalID'],
+	                'idCalendario' => $datos['idCalendario'],
+	                'idFormaPago' => $datos['idFormaPago'],
+	                'idUsuario' => $datos['usuarioID'],
+	                'referencia' => $datos['referencia'],
+	                'idNivel' => $datos['idNivel'],
+	                'folio' => $folio,
+	                'idCuenta' => $datos['idBanco'],
+	                'voucher' => $datos['voucher'],
+	                'activo' => 1,
+	                'eliminado' => 0,
+	            ]);
+			} catch (Exception $e) {
+				return null;
+			}
+		}
+
+		function modificarEgreso($egresoID, $datos){
+			try {
+				Egreso::find($egresoID);
+
+	            $egreso->concepto = $datos['concepto'];
+	            $egreso->monto = $datos['monto'];
+	            $egreso->observaciones = $datos['observaciones'];
+	            $egreso->idRubro = $datos['idRubro'];
+	            $egreso->idTipo = $datos['idTipo'];
+	            $egreso->idFormaPago = $datos['idFormaPago'];
+	            $egreso->idCuenta = $datos['idCuenta'];
+	            $egreso->save();
+	            return $egreso;
+			} catch (Exception $e) {
+				return null;
+			}
 		}
 
 		function busquedaGeneral(){
@@ -69,16 +114,15 @@
 
 		function listas(){
 			try {
-				$listas = array();
-				$listas['rubros'] = Rubrosegreso::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $listas['tipos'] = Tiposegreso::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $listas['calendarios'] = Calendario::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $listas['formas'] = Formaspago::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $listas['metodos'] = Metodospago::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $listas['niveles'] = Nivele::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $listas['cuentas'] = Cuenta::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-
-	            return $listas;
+				return array(
+	            	'rubros' => Rubrosegreso::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'tipos' => Tiposegreso::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'calendarios' => Calendario::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'formas' => Formaspago::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'metodos' => Metodospago::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'niveles' => Nivele::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'cuentas' => Cuenta::where('eliminado', '=', 0)->where('activo', '=', 1)->get()
+	            );
 			} catch (Exception $e) {
 				return null;
 			}
@@ -153,6 +197,37 @@
 			whereRaw("DATE_FORMAT(egresos.created_at,'%y-%m-%d') = CURDATE()")->
 			sum('monto');
 			return $total + 0;
+		}
+
+		function existeSolicitud($egresoID){
+			try {
+				$dato = Egresosolicitude::where('idEgreso', '=', $egresoID)->where('estatus', '=', 1)->get();
+				return (count($dato) > 0);
+			} catch (Exception $e) {
+				return null;
+			}
+		}
+
+		function crearSolicitud($datos){
+			try {
+				return Egresosolicitude::create([
+	                'idUsuarioSolicito' => $datos['usuarioID'],
+	                'idUsuarioAcepto' => 0,
+	                'idEgreso' => $datos['id'],
+	                'concepto' => $datos['concepto'],
+	                'monto' => $datos['monto'],
+	                'observaciones' => $datos['observaciones'],
+	                'idRubro' => $datos['idRubro'],
+	                'idTipo' => $datos['idTipo'],
+	                'idFormaPago' => $datos['idFormaPago'],
+	                'idCuenta' => $datos['idCuenta'],
+	                'estatus' => 1,
+	                'eliminado' => 0,
+	                'activo' => 1
+	            ]);
+			} catch (Exception $e) {
+				return null;
+			}
 		}
 	}
 ?>

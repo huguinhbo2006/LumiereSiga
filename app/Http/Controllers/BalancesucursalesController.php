@@ -37,113 +37,46 @@ class BalancesucursalesController extends BaseController
 
     function corte(Request $request){
         try{
-            $usuario = $request['idUsuario'];
-            $sucursal = $request['idSucursal'];
-            $formas = Formaspago::where('eliminado', '=', 0)->get();
-            $resultado = array();
-            $totalIngresos = 0;
-            $totalEgresos = 0;
-            
-            $ingresos = array();
-            $ingreso = array();
-            foreach ($formas as $forma) {
-                $total = Ingreso::select(DB::raw('SUM(ingresos.monto) as total'))->
-                                  where('eliminado', '=', 0)->
-                                  where('activo', '=', 1)->
-                                  where('idSucursal', '=', $sucursal)->
-                                  where('idUsuario', '=', $usuario)->
-                                  where('idFormaPago', '=', $forma->id)->
-                                  whereDay('created_at', '=', date('d'))->
-                                  whereMonth('created_at', '=', date('m'))->
-                                  whereYear('created_at', '=', date('Y'))->
-                                  get();
-                $ingreso['forma'] = $forma->nombre;
-                $ingreso['cantidad'] = ($total[0]->total === null) ? number_format(0, 2, '.', ',') : number_format($total[0]->total, 2, '.', ',');
-                $ingresos[] = $ingreso;
-            }
-            $resultado['ingresos'] = $ingresos;
+          $funciones = new Balances();
+          $respuesta = array();
 
-            $egresos = array();
-            $egreso = array();
-            foreach ($formas as $forma) {
-                $total = Egreso::select(DB::raw('SUM(egresos.monto) as total'))->
-                                  where('eliminado', '=', 0)->
-                                  where('activo', '=', 1)->
-                                  where('idUsuario', '=', $usuario)->
-                                  where('idSucursal', '=', $sucursal)->
-                                  where('idFormaPago', '=', $forma->id)->
-                                  whereDay('created_at', '=', date('d'))->
-                                  get();
-                $egreso['forma'] = $forma->nombre;
-                $egreso['cantidad'] = ($total[0]->total === null) ? number_format(0, 2, '.', ',') : number_format($total[0]->total, 2, '.', ',');
-                $egresos[] = $egreso;
-            }
-            $resultado['egresos'] = $egresos;
+          $respuesta['ingresos'] = $funciones->ingresosAdministrativo($request['sucursalID'], $request['usuarioID']);
 
-            $totalEgresos = Egreso::select(DB::raw('SUM(egresos.monto) as total'))->
-                                  where('eliminado', '=', 0)->
-                                  where('activo', '=', 1)->
-                                  where('idSucursal', '=', $sucursal)->
-                                  where('idFormaPago', '=', 1)->
-                                  get();
-            $totalIngresos = Ingreso::select(DB::raw('SUM(ingresos.monto) as total'))->
-                                  where('eliminado', '=', 0)->
-                                  where('activo', '=', 1)->
-                                  where('idSucursal', '=', $sucursal)->
-                                  where('idFormaPago', '=', 1)->
-                                  get();
+          $respuesta['egresos'] = $funciones->egresosAdministrativo($request['sucursalID'], $request['usuarioID']);
 
-            $resultado['total'] = floatval($totalIngresos[0]->total) - floatval($totalEgresos[0]->total);
+          $total = floatval($funciones->total($request['id'])) - floatval($funciones->administrativo($request['id']));
+          $respuesta['total'] = number_format($total, 2, '.', ',');
+          $respuesta['existe'] = $funciones->existeValeAdministrativo($request['sucursalID']);
+          $respuesta['vales'] = number_format($funciones->vales($request['id']), 2, '.', ',');
+          $respuesta['administrativo'] = number_format($funciones->administrativo($request['id']));
 
-            $valeAdministrativo = Valeadministrativo::where('idSucursal', '=', $sucursal)->get();
-            if(count($valeAdministrativo) > 0){
-              $resultado['total'] = floatval($resultado['total']) - floatval($valeAdministrativo[0]->monto);
-              $resultado['administrativo'] = number_format($valeAdministrativo[0]->monto, 2, '.', ',');
-              $resultado['id'] = $valeAdministrativo[0]->id;
-              $resultado['existe'] = true;
-            } else {
-              $resultado['existe'] = false;
-            }
-
-            $resultado['total'] = number_format($resultado['total'], 2, '.', ',');
-
-            return response()->json($resultado, 200);
+          return response()->json($respuesta, 200);
         }catch(Exception $e){
             return response()->json("Error en el servidor", 400);
         }
     }
 
-    function nuevoValeAdministrativo(Request $request){
+    function nuevoVale(Request $request){
       try {
-        $total = str_replace(',', '', $request['total']);
-        $total = floatval($total);
-        if($total < floatval($request['monto'])){
-          return response()->json('No cuentas con suficiente efectivo para realizar este vale', 400);
-        }
-
-        $vale = Valeadministrativo::create([
-          'idSucursal' => $request['idSucursal'],
-          'monto' => $request['monto'],
-          'activo' => 1,
-          'eliminado' => 0
-        ]);
-
+        $funciones = new Balances();
+        $vale = $funciones->crearValeAdministrativo($request['sucursalID']);
         return response()->json($vale, 200);
       } catch (Exception $e) {
         return response()->json('Error en el servidor', 400);
       }
     }
 
-    function agregarSaldoValeAdministrativo(Request $request){
+    function saldoVale(Request $request){
       try {
-        $monto = $request['monto'];
-        $total = str_replace(',', '', $request['total']);
-        $total = floatval($total);
-        if($total < floatval($monto)){
+        $funciones = new Balances();
+        
+        $total = floatval($funciones->total($request['sucursalID'])) - floatval($funciones->administrativo($request['sucursalID']));
+        if($total < floatval($request['monto'])){
           return response()->json('No cuentas con suficiente efectivo para realizar este vale', 400);
         }
-        $vale = Valeadministrativo::find($request['id']);
-        $vale->monto = floatval($vale->monto) + floatval($monto);
+
+        $vale = Valeadministrativo::where('idSucursal', '=', $request['sucursalID'])->get()[0];
+        $vale->monto = floatval($vale->monto) + floatval($request['monto']);
         $vale->save();
 
         return response()->json($vale, 200);
@@ -152,14 +85,12 @@ class BalancesucursalesController extends BaseController
       }
     }
 
-    function quitarSaldoValeAdministrativo(Request $request){
+    function saldoCaja(Request $request){
       try {
-        $monto = $request['monto'];
-        $vale = Valeadministrativo::find($request['id']);
-        if($vale->monto < $monto){
-          return response()->json('No cuentas con esa cantidad en tu vale administrativo', 400);
-        }
-        $vale->monto = floatval($vale->monto) - floatval($monto);
+        $funciones = new Balances();
+
+        $vale = Valeadministrativo::where('idSucursal', '=', $request['sucursalID'])->get()[0];
+        $vale->monto = floatval($vale->monto) - floatval($request['monto']);
         $vale->save();
 
         return response()->json($vale, 200);

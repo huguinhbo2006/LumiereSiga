@@ -4,6 +4,8 @@
 	use Illuminate\Support\Facades\DB;
 	use App\Vale;
 	use App\Ingreso;
+	use App\Nivele;
+	use App\Calendario;
 	use App\Clases\Folios;
 
 	class Vales{
@@ -21,6 +23,32 @@
 	            )->
 	            where('vales.eliminado', '=', 0)->
 	            where('vales.aceptado', '=', 0)->get();
+			} catch (Exception $e) {
+				return null;
+			}
+		}
+
+		function creados($sucursalID){
+			try {
+				return Vale::leftjoin('calendarios', 'idCalendario', '=', 'calendarios.id')->
+                    select(
+                        'vales.id',
+                        'vales.monto',
+                        'calendarios.nombre as calendario',
+                        'vales.idSucursalEntrada',
+                        'vales.idSucursalSalida',
+                        'vales.idCalendario',
+                        'vales.idEgreso',
+                        'vales.observaciones',
+                        'vales.folio',
+                        DB::raw("(CASE 
+                            WHEN(vales.aceptado = 0) THEN 'bg-amarillo'
+                            WHEN(vales.aceptado = 1) THEN 'bg-verde'
+                            WHEN(vales.aceptado = 2) THEN 'bg-rojo'
+                            END) AS bg")
+                        )->
+                    where('vales.idSucursalSalida', '=', $sucursalID)->
+                    where('vales.eliminado', '=', 0)->get();
 			} catch (Exception $e) {
 				return null;
 			}
@@ -49,6 +77,17 @@
 	                'eliminado' => 0,
 	            ]);
 				return $ingreso;
+			} catch (Exception $e) {
+				return null;
+			}
+		}
+
+		function listas(){
+			try {
+				return $array(
+					'calendarios' => Calendario::where('eliminado', '=', 0)->get(),
+					'niveles' => Nivele::where('eliminado', '=', 0)->get()
+				);
 			} catch (Exception $e) {
 				return null;
 			}

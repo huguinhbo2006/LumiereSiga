@@ -17,8 +17,9 @@
     
     function listas(){
        try {
-         $listas['sucursales'] = Sucursale::where('eliminado', '=', 0)->get();
-         return $listas;
+         return $array(
+          'sucursales' => Sucursale::where('eliminado', '=', 0)->get()
+        );
        } catch (Exception $e) {
          return null;
        }
@@ -74,27 +75,20 @@
       }
     }
 
-    function existeValeAdministrativo(){
+    function existeValeAdministrativo($sucursalID){
       try {
-        $existe = Valeadministrativo::where('idSucursal', '=', $sucursal)->get();
-        return ($existe > 0);
+        $existe = Valeadministrativo::where('idSucursal', '=', $sucursalID)->get();
+        return (count($existe) > 0);
       } catch (Exception $e) {
         return null;
       }
     }
     
-    function ingresosFormaPago($sucursalID){
+    function ingresosAdministrativo($sucursalID, $usuarioID){
       try {
-        $formas = Formaspago::select(
-          'formaspagos.nombre',
-          DB::raw("(SELECT SUM(monto) FROM ingresos WHERE idFormaPago = formaspagos.id AND DATE_FORMAT(created_at,'%y-%m-%d') = CURDATE() AND idSucursal = $sucursalID LIMIT 1) as monto")
-        )->where('eliminado', '=', 0)->get();
+        $formas = Formaspago::select('id', 'nombre as forma')->get();
         foreach ($formas as $forma) {
-          if(is_null($forma)){
-            $forma->monto = '$0.00';
-          }else{
-            $forma->monto = '$'.number_format($forma->monto, 2, '.', ',');
-          }
+          $forma->cantidad = number_format(Ingreso::where('idFormaPago', '=', $forma->id)->where('idSucursal', '=', $sucursalID)->where('idUsuario', '=', $usuarioID)->whereRaw("DATE_FORMAT(created_at,'%y-%m-%d') = CURDATE()")->sum('monto'), 2, '.', ',');
         }
         return $formas;
       } catch (Exception $e) {
@@ -102,18 +96,11 @@
       }
     }
 
-    function egresosFormaPago($sucursalID){
+    function egresosAdministrativo($sucursalID, $usuarioID){
       try {
-        $formas = Formaspago::select(
-          'formaspagos.nombre',
-          DB::raw("(SELECT SUM(monto) FROM egresos WHERE idFormaPago = formaspagos.id AND DATE_FORMAT(created_at,'%y-%m-%d') = CURDATE() AND idSucursal = $sucursalID LIMIT 1) as monto")
-        )->where('eliminado', '=', 0)->get();
+        $formas = Formaspago::select('id', 'nombre as forma')->get();
         foreach ($formas as $forma) {
-          if(is_null($forma)){
-            $forma->monto = '$0.00';
-          }else{
-            $forma->monto = '$'.number_format($forma->monto, 2, '.', ',');
-          }
+          $forma->cantidad = number_format(Egreso::where('idFormaPago', '=', $forma->id)->where('idSucursal', '=', $sucursalID)->where('idUsuario', '=', $usuarioID)->whereRaw("DATE_FORMAT(created_at,'%y-%m-%d') = CURDATE()")->sum('monto'), 2, '.', ',');
         }
         return $formas;
       } catch (Exception $e) {
@@ -141,6 +128,20 @@
       try {
         $vale = Valeadministrativo::where('idSucursal', '=', $sucursalID)->get();
         return (count($vale) > 0) ? $vale[0]->monto : 0;
+      } catch (Exception $e) {
+        return null;
+      }
+    }
+
+    function crearValeAdministrativo($sucursalID){
+      try {
+        $vale = Valeadministrativo::create([
+          'idSucursal' => $sucursalID,
+          'monto' => 0,
+          'activo' => 1,
+          'eliminado' => 0
+        ]);
+        return $vale;
       } catch (Exception $e) {
         return null;
       }

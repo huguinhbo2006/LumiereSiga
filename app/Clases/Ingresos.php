@@ -24,17 +24,17 @@
 
 		function listas(){
 			try {
-				$respuesta = array();
-				$respuesta['rubros'] = Rubro::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $respuesta['tipos'] = Tiposingreso::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $respuesta['calendarios'] = Calendario::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $respuesta['formas'] = Formaspago::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $respuesta['metodos'] = Metodospago::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $respuesta['niveles'] = Nivele::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $respuesta['cuentas'] = Cuenta::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-	            $respuesta['bancos'] = Banco::where('eliminado', '=', 0)->get();
-	            $respuesta['sucursales'] = Sucursale::where('eliminado', '=', 0)->get();
-	            return $respuesta;
+	            return $array(
+	            	'rubros' => Rubro::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'tipos' => Tiposingreso::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'calendarios' => Calendario::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'formas' => Formaspago::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'metodos' => Metodospago::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'niveles' => Nivele::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'cuentas' => Cuenta::where('eliminado', '=', 0)->where('activo', '=', 1)->get(),
+	            	'bancos' => Banco::where('eliminado', '=', 0)->get(),
+	            	'sucursales' => Sucursale::where('eliminado', '=', 0)->get()
+	            );
 			} catch (Exception $e) {
 				return null;
 			}

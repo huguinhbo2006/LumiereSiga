@@ -69,35 +69,13 @@ class ValesController extends BaseController
         }
     }
 
-    function mostrarCreados(Request $request){
+    function creados(Request $request){
         try {
-            $vales = Vale::leftjoin('calendarios', 'idCalendario', '=', 'calendarios.id')->
-                    select(
-                        'vales.id',
-                        'vales.monto',
-                        'calendarios.nombre as calendario',
-                        'vales.idSucursalEntrada',
-                        'vales.idSucursalSalida',
-                        'vales.idCalendario',
-                        'vales.idEgreso',
-                        'vales.observaciones',
-                        'vales.folio',
-                        DB::raw("(CASE 
-                            WHEN(vales.aceptado = 0) THEN 'bg-amarillo'
-                            WHEN(vales.aceptado = 1) THEN 'bg-verde'
-                            WHEN(vales.aceptado = 2) THEN 'bg-rojo'
-                            END) AS bg")
-                        )->
-                    where('vales.idSucursalSalida', '=', $request['idSucursal'])->
-                    where('vales.eliminado', '=', 0)->
-                    where('vales.idUsuarioCreo', '=', $request['idUsuario'])->
-                    where('vales.idCalendario', '=', $request['idCalendario'])->get();
-            $calendarios = Calendario::where('eliminado', '=', 0)->get();
-            $niveles = Nivele::where('eliminado', '=', 0)->get();
-
-            $respuesta['vales'] = $vales;
-            $respuesta['niveles'] = $niveles;
-            $respuesta['calendarios'] = $calendarios;
+            $funciones = new Vales();
+            $respuesta = array(
+                'datos' => $funciones->creados($request['sucursalID']),
+                'listas' => $funciones->listas() 
+            );
             return response()->json($respuesta, 200);
         } catch (Exception $e) {
             return response()->json('Error en el servidor', 400);
@@ -164,7 +142,7 @@ class ValesController extends BaseController
     function eliminar(Request $request){
         try{
             $vale = Vale::find($request['id']);
-            $vale->aceptado = 2;
+            $vale->eliminado = 1;
             $vale->save();
 
             return response()->json($vale, 200);
@@ -182,6 +160,18 @@ class ValesController extends BaseController
             $vale->idIngreso = $ingreso->id;
             $vale->aceptado = 1;
             $vale->save();
+            return response()->json($vale, 200);
+        }catch(Exception $e){
+            return response()->json('Error de servidor', 400);
+        }
+    }
+
+    function rechazar(Request $request){
+        try{
+            $vale = Vale::find($request['id']);
+            $vale->aceptado = 2;
+            $vale->save();
+
             return response()->json($vale, 200);
         }catch(Exception $e){
             return response()->json('Error de servidor', 400);

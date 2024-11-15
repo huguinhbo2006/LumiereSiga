@@ -45,16 +45,15 @@
 
     function listas(){
       try {
-        $listas = array();
-        $listas['niveles'] = Nivele::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-        $listas['subniveles'] = Subnivele::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-        $listas['cursos'] = Curso::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-        $listas['modalidades'] = Modalidade::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-        $listas['calendarios'] = Calendario::whereRaw('fin > NOW()')->where('eliminado', '=', 0)->get();
-        $listas['categorias'] = Categoria::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-        $listas['sedes'] = Sede::where('eliminado', '=', 0)->where('activo', '=', 1)->get();
-
-        return $listas;
+        return array(
+          'niveles' => Niveles::where('eliminado', '=', 0)->get(),
+          'subniveles' => Subnivele::where('eliminado', '=', 0)->get(),
+          'cursos' => Curso::where('eliminado', '=', 0)->get(),
+          'modalidades' => Modalidade::where('eliminado', '=', 0)->get(),
+          'calendarios' => Calendario::where('eliminado', '=', 0)->get(),
+          'categorias' => Categoria::where('eliminado', '=', 0)->get(),
+          'sedes' => Sede::where('eliminado', '=', 0)->get() 
+        );
       } catch (Exception $e) {
         return null;
       }

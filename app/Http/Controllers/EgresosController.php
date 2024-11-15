@@ -28,29 +28,9 @@ class EgresosController extends BaseController
             if(floatval($request['monto']) > (floatval($saldoIngresos) - floatval($saldoEgresos)) && intval($request['idFormaPago']) === 1){
                 return response()->json("No cuentas con suficiente saldo para realizar este egreso", 400);
             }
-
-
             $folio = $folios->proximoEgreso($request['idNivel'], $request['idCalendario'], $request['sucursalID']);
 
-            $egreso = Egreso::create([
-                'concepto' => $request['concepto'],
-                'monto' => $request['monto'],
-                'observaciones' => $request['observaciones'],
-                'idRubro' => $request['idRubro'],
-                'idTipo' => $request['idTipo'],
-                'idSucursal' => $request['sucursalID'],
-                'idCalendario' => $request['idCalendario'],
-                'idFormaPago' => $request['idFormaPago'],
-                'idUsuario' => $request['usuarioID'],
-                'referencia' => $request['referencia'],
-                'idNivel' => $request['idNivel'],
-                'folio' => $folio,
-                'idCuenta' => $request['idBanco'],
-                'voucher' => $request['voucher'],
-                'activo' => 1,
-                'eliminado' => 0,
-            ]);
-
+            $egreso = $funciones->crearEgreso($request, $folio);
             $egreso = $funciones->completar($egreso);
             
             return response()->json($egreso, 200);
@@ -79,16 +59,7 @@ class EgresosController extends BaseController
     function modificar(Request $request){
         try {
             $funciones = new Egresos();
-            $egreso = Egreso::find($request['id']);
-
-            $egreso->concepto = $request['concepto'];
-            $egreso->monto = $request['monto'];
-            $egreso->observaciones = $request['observaciones'];
-            $egreso->idRubro = $request['idRubro'];
-            $egreso->idTipo = $request['idTipo'];
-            $egreso->idFormaPago = $request['idFormaPago'];
-            $egreso->idCuenta = $request['idCuenta'];
-            $egreso->save();
+            $egreso = $funciones->modificarEgreso($request['id'], $request);
 
             $egreso = $funciones->completar($egreso);
 
@@ -241,25 +212,11 @@ class EgresosController extends BaseController
 
     function solicitarModificacion(Request $request){
         try {
-            $existe = Egresosolicitude::where('idEgreso', '=', $request['id'])->where('estatus', '=', 1)->get();
-            if(count($existe) > 0){
+            $funciones = new Egresos();
+            if($funciones->existeSolicitud($request['id'])){
                 return response()->json('Ya existe una solicitud para modificar este egreso', 400);
             }
-            $solicitud = Egresosolicitude::create([
-                'idUsuarioSolicito' => $request['usuarioID'],
-                'idUsuarioAcepto' => 0,
-                'idEgreso' => $request['id'],
-                'concepto' => $request['concepto'],
-                'monto' => $request['monto'],
-                'observaciones' => $request['observaciones'],
-                'idRubro' => $request['idRubro'],
-                'idTipo' => $request['idTipo'],
-                'idFormaPago' => $request['idFormaPago'],
-                'idCuenta' => $request['idCuenta'],
-                'estatus' => 1,
-                'eliminado' => 0,
-                'activo' => 1
-            ]);
+            $solicitud = $funciones->crearSolicitud($request);
             return response()->json($solicitud, 200);
         } catch (Exception $e) {
             return response()->json('Error en el servidor', 400);

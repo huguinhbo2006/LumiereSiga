@@ -413,10 +413,10 @@ class PDFController extends BaseController
             $egresosDiarios = $egresos->egresosDiariosUsuario($request['usuarioID'], $request['sucursalID']);
             $respuesta['egresos'] = $generales->listaObjetosArray($egresosDiarios);
 
-            $formasIngresos = $funciones->ingresosFormaPago($request['sucursalID']);
+            $formasIngresos = $funciones->ingresosAdministrativo($request['sucursalID'], $request['usuarioID']);
             $respuesta['totalIngresos'] = $generales->listaObjetosArray($formasIngresos);
 
-            $formasEgresos = $funciones->egresosFormaPago($request['sucursalID']);
+            $formasEgresos = $funciones->egresosAdministrativo($request['sucursalID'], $request['usuarioID']);
             $respuesta['totalEgresos'] = $generales->listaObjetosArray($formasEgresos);
 
             $fichas = $funciones->fichas($request['usuarioID'], $request['sucursalID']);
